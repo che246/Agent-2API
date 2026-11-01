@@ -1,0 +1,76 @@
+:root {
+  --sidebar-w: 216px;
+  --topbar-h: 50px;
+  --titlebar-h: 32px;
+  --pad: 20px;
+  --content-max: 80vw;
+  --sb-w: 11px;
+}
+
+/* ─── 基础重置 ─── */
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  min-width: 720px;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+  background-color: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 720px 是桌面 Tauri 窗口的最小宽度下限（窗口不允许再拖窄）。手机上照抄会
+   把整个文档撑到 720px 宽：375px 的视口里只露出中间 375px 的一段，左右两边
+   各被裁掉 172px —— 用户看到的「页面看不全」就是这一条造成的，而且它发生在
+   任何媒体查询之外，光靠 @media (max-width:767px) 覆盖不掉级联。
+   真机视口按浏览器给的实际宽度走，窗口最小宽度由 Tauri 自己管（Web 端没有
+   窗口这个概念，body 不该替它设下限）。 */
+@media (max-width: 767px) {
+  body { min-width: 0; }
+}
+
+/* ─── 移动端：保持「固定视口 + 内容区自己滚」 ───
+   曾经为了让手机能滚动，这里把 html/body 放成 height:auto + 正常文档流，
+   代价是**顶栏跟着滚走**：往下翻账号时「账号」标题与汉堡按钮会消失，
+   回顶部只能反向滑很久。手机上顶栏应当常驻。
+   现在改回固定视口（与桌面同一套骨架），滚动交给 .page.active：
+     .shell(100dvh) -> .main(flex列) -> .topbar(固定) + .content(撑满) -> .page.active(滚)
+   100dvh 而不是 100vh：移动浏览器地址栏收起/展开时 100vh 会算进被遮住的那段，
+   内容底部会被顶出可视区；dvh 跟随动态视口，收起地址栏后不跳。
+   旧浏览器不认 dvh 时前面的 100vh 兜底（layout.css 里已有）。
+   注意：不再给 body 设 overflow —— 固定视口下它本来就滚不动，
+   设了反而会在个别 WebView 里多出一条橡皮筋。 */
+@media (max-width: 767px) {
+  html, body { height: 100%; overflow: hidden; }
+  .shell { height: 100dvh; }
+}
+
+h1, h2, h3, h4, p { margin: 0; }
+
+button { cursor: pointer; }
+code, kbd { font-family: var(--font-mono); font-size: .93em; }
+
+::selection { background: var(--primary-soft); color: var(--text); }
+
+/* ─── 滚动条 ─── */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+
+::-webkit-scrollbar { width: var(--sb-w); height: var(--sb-w); }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ─── 工具类 ─── */
+.mono { font-family: var(--font-mono); }
+.muted { color: var(--text-3); }
+.spacer { flex: 1 1 auto; }

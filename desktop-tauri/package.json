@@ -1,0 +1,15 @@
+{
+  "name": "agent2api-desktop-tauri",
+  "version": "3.3.0-beta.6",
+  "private": true,
+  "description": "Agent2API 桌面端 — AI 路由网关与 Agent 客户端接管（Tauri）",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
+    "build": "tauri build",
+    "icon": "tauri icon src-tauri/icons/source.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

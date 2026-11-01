@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- ─── PWA：让 iOS「添加到主屏幕」后以独立窗口打开（不是每次都跳回 Safari）───
+       iOS 只认 manifest 里 display: standalone + apple-touch-icon；没有这套声明，
+       主屏幕图标点击会退回 Safari。注意：加了之后用户必须删掉旧书签重新添加。 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Agent2API">
+  <meta name="theme-color" content="#0f1115">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/app-icon-180.png">
+  <link rel="icon" type="image/png" href="assets/app-icon-192.png">
+  <title data-i18n="Agent2API · 多提供商本地网关">Agent2API · 多提供商本地网关</title>
+  <script>
+    // 与主题持久化配合：在 CSS 解析前先贴上 data-theme，避免深色模式首屏闪烁
+    (() => {
+      const mode = localStorage.getItem('workbuddy-desktop-theme') || 'system';
+      document.documentElement.dataset.theme = mode;
+      const dark = mode === 'dark'
+        || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+      // 界面缩放（设置页「显示」）也在这里抢先交一次：缩放是 WebView 层的效果，
+      // 不存在「先贴个属性」这种同步办法，只能尽早发命令 —— 晚了首屏会看到缩放跳一下。
+      // 这只是**尽力而为**的反闪烁：桥（workbuddyDesktop）此时已由壳注入（初始化脚本
+      // 先于页面脚本执行），但命令异步生效且失败不重试；权威的一次在 app.js 的启动
+      // 路径上（applyZoom(storedZoom())）—— 同一份 localStorage，重复应用无副作用。
+      const zoom = Number(localStorage.getItem('workbuddy-desktop-zoom'));
+      if (Number.isFinite(zoom) && zoom >= 80 && zoom <= 130) {
+        try { window.workbuddyDesktop?.setZoom?.(zoom / 100); } catch { /* 浏览器直开忽略 */ }
+      }
+    })();
+  </script>
+  <script>
+    // 语言引导：在 head 解析期定下界面语言，再同步注入词典 —— 必须早于所有业务脚本，
+    // 否则首屏会先按简体渲染再跳一下。解析规则与 ui/i18n.js 的 resolveLocale 逐字一致
+    // （那份供运行时查表用，这份供词典注入用，因为 i18n.js 本身也要等这段先定语言；
+    // 改一处必须同步改另一处与 login.html）。
+    (function () {
+      var CODES = ['zh-Hans', 'zh-Hant', 'en', 'ja', 'ko', 'pt-BR'];
+      var raw = null;
+      try { raw = localStorage.getItem('workbuddy-desktop-locale'); } catch (e) { /* 存储被禁：按 auto 处理 */ }
+      var locale = 'en';
+      if (raw && raw !== 'auto' && CODES.indexOf(raw) >= 0) {
+        locale = raw;
+      } else {
+        var tags = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language];
+        for (var i = 0; i < tags.length; i++) {
+          var tag = String(tags[i] || '').toLowerCase();
+          if (!tag) continue;
+          if (tag === 'zh-tw' || tag === 'zh-hk' || tag === 'zh-mo' || tag.indexOf('hant') >= 0) { locale = 'zh-Hant'; break; }
+          if (tag.indexOf('zh') === 0) { locale = 'zh-Hans'; break; }
+          if (tag.indexOf('ja') === 0) { locale = 'ja'; break; }
+          if (tag.indexOf('ko') === 0) { locale = 'ko'; break; }
+          if (tag.indexOf('pt') === 0) { locale = 'pt-BR'; break; }
+        }
+      }
+      document.documentElement.lang = locale;
+      // 简体没有词典目录（查不到即显示简体原文），不必注入；其余语言注入 manifest + 各域文件。
+      // locale 已过白名单校验，拼进 src 安全；某域文件缺失时该 <script> 404，静默无害。
+      if (locale === 'zh-Hans') return;
+      document.write('<script src="i18n/manifest.js"><\/script>');
+      var domains = window.__WB_I18N_DOMAINS || [];
+      for (var d = 0; d < domains.length; d++) {
+        document.write('<script src="i18n/' + locale + '/' + domains[d] + '.js"><\/script>');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/page-checkin.css">
+  <link rel="stylesheet" href="css/page-accounts.css">
+  <link rel="stylesheet" href="css/page-accounts-providers.css">
+  <!-- 账号页表格化（四家混排的一张表）：排在两个账号页样式之后 ——
+       它要覆盖 page-accounts.css 里 .acct-scroll 的滚动方向等既有声明 -->
+  <link rel="stylesheet" href="css/page-accounts-table.css">
+  <link rel="stylesheet" href="css/page-routing.css">
+  <link rel="stylesheet" href="css/page-routing-trace.css">
+  <link rel="stylesheet" href="css/page-gateway.css">
+  <link rel="stylesheet" href="css/page-agent.css">
+  <link rel="stylesheet" href="css/page-logs.css">
+  <link rel="stylesheet" href="css/page-tasks.css">
+  <link rel="stylesheet" href="css/page-requests.css">
+  <link rel="stylesheet" href="css/page-settings.css">
+  <!-- 设置 → 显示 → 侧边栏菜单（分组卡片 / 拖拽把手 / 行网格）。排在
+       page-settings.css 之后：它复用那里的面板骨架，只补自己的零件 -->
+  <link rel="stylesheet" href="css/page-sidebar-pane.css">
+  <!-- 更新日志（Markdown 正文 / 版本卡片 / 导航更新提示）：排在页面样式之后，
+       需要时可覆盖 page-settings.css 里为旧的纯文本说明写的规则 -->
+  <link rel="stylesheet" href="css/update-notes.css">
+  <link rel="stylesheet" href="css/page-report.css">
+  <!-- AI 助手页（智能组）：消息流 / 工具卡 / 确认卡 / 输入区。排在页面样式之后，
+       它是一个新页面，没有需要覆盖的既有规则 -->
+  <link rel="stylesheet" href="css/page-assistant.css">
+  <!-- 表格列设置：必须排在所有页面样式之后 ——
+       列对齐是**用户配置**，要盖过各表为「这一列靠哪边」写死的默认值
+       （.models-table th.r / .acct-table td.cell-pick / .req-head .req-dur …），
+       靠级联顺序取胜而不是堆特异性。 -->
+  <link rel="stylesheet" href="css/table-col-settings.css">
+  <!-- 移动端适配层：最后加载，断点 768px。不动既有 900px 折叠规则，
+       只处理 768px 以下真机小屏：侧边栏抽屉化 + 表格卡片化 + 卡片堆叠 -->
+  <link rel="stylesheet" href="css/mobile.css">
+  <link rel="stylesheet" href="islands/ui.css">
+  <!-- 多语言运行时：查表 t() + 静态文案扫描器（data-i18n 系列）。
+       词典已由上面 head 里的引导脚本同步注入（document.write），这里只放运行时逻辑。
+       必须排在 units.js / app.js 等业务脚本之前 —— 它们在加载期就可能读 window.wbI18n；
+       排在 head 末尾天然满足。 -->
+  <script src="i18n.js"></script>
+</head>
+<body>
+  <div id="desktop-app"></div>
+  <script src="icons.js"></script>
+  <script src="units.js"></script>
+  <script src="sidebar-layout.js"></script>
+  <script src="filter-memory.js"></script>
+  <script src="islands/ui.js"></script>
+  <script src="app.js"></script>
+  <script src="clipboard.js"></script>
+  <script src="web-login.js"></script>
+  <script src="sms-login.js"></script>
+  <script src="aliyun-captcha.js"></script>
+  <script src="autoclaw-oauth.js"></script>
+  <script src="zcode-claim.js"></script>
+  <script src="codearts-welfare.js"></script>
+  <script src="zcode-captcha-pool.js"></script>
+  <script src="providers.js"></script>
+  <script src="preset-providers.js"></script>
+  <script src="table-columns.js"></script>
+  <script src="mobile-columns.js"></script>
+  <script src="conversation-preview.js"></script>
+  <script src="custom-provider-ui.js"></script>
+  <script src="markdown.js"></script>
+  <script src="upgrade-panel.js"></script>
+</body>
+</html>

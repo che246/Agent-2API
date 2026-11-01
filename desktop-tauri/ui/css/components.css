@@ -1,0 +1,4 @@
+@media (max-width: 1120px) {
+  .toolbar .actions { flex-basis: 100%; margin-left: 0; }
+}
+body.col-resizing { cursor: col-resize; user-select: none; }
