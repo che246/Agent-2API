@@ -292,7 +292,11 @@ jobs:
         with:
           name: macos-universal
           if-no-files-found: error
-          path: target/release/bundle/dmg/*.dmg
+          # 指定 --target 后产物落在**该 target 的子目录**下（不是 target/release），
+          # 这是 run#1 里 `target/release/bundle/dmg/*.dmg` 匹配不到的原因。
+          path: |
+            target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            target/release/bundle/dmg/*.dmg
 
   # ── Android APK（Capacitor，未签名度见文件头）───────────────
   android:
@@ -307,6 +311,7 @@ jobs:
           cache: npm
           cache-dependency-path: |
             desktop-tauri/mobile/package-lock.json
+            desktop-tauri/ui-kit/package-lock.json
 
       - uses: actions/setup-java@v5
         with:
@@ -332,6 +337,14 @@ jobs:
 
       - name: 安装手机端依赖并构建 Web 产物
         run: |
+          set -euo pipefail
+          # ui-kit 也要装：mobile 的 tsconfig 把 `@ui` 指到 `../ui-kit/src`
+          # （`paths` 映射），于是 tsc 会**深入 ui-kit 源码**做类型检查，而
+          # 那些文件 import 的 `@base-ui/react/*` / `class-variance-authority`
+          # 要从 ui-kit 自己的 node_modules 解析。只装 mobile 依赖会得到几十条
+          # `TS2307: Cannot find module '@base-ui/react/…'`（run#2 的实际报错），
+          # 以及由它连锁出来的 `TS7006: Parameter 'state' implicitly has an 'any' type`。
+          npm --prefix desktop-tauri/ui-kit ci
           npm --prefix desktop-tauri/mobile ci
           npm --prefix desktop-tauri/mobile run build:native
           npx --prefix desktop-tauri/mobile cap sync android
