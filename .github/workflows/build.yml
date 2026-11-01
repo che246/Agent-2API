@@ -304,7 +304,22 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - uses: android-actions/setup-android@v3
+      # 不用 android-actions/setup-android：它第一步跑 `sdkmanager tools`，而 Google
+      # 已把这个包从 SDK 仓库移除，于是该 action 稳定失败在
+      # `Warning: Failed to find package 'tools'` → exit 1（run#1 的实际报错）。
+      # ubuntu-latest 镜像自带完整 Android SDK（ANDROID_HOME/ANDROID_SDK_ROOT 已设），
+      # 这里只需要补上 Gradle 需要的那几个 platform / build-tools 版本。
+      - name: 准备 Android SDK
+        run: |
+          set -euo pipefail
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          # 版本对齐 desktop-tauri/mobile/android/variables.gradle
+          # （compileSdk 36 / targetSdk 36 / minSdk 24）
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platform-tools" "platforms;android-36" "build-tools;36.0.0" || true
+          ls "$ANDROID_HOME/platforms" || true
 
       - name: 安装手机端依赖并构建 Web 产物
         run: |
