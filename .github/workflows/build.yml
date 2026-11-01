@@ -253,9 +253,16 @@ jobs:
           path: dist/*.tar.gz
 
   # ── macOS 桌面端 dmg（只能在该 runner 上出，无法交叉编译）────
+  #
+  # `continue-on-error`：macOS runner 在部分账户/时段拿不到（job 不分配 runner，
+  # 直接 cancelled、0 step、无日志 —— 本地实测过 run#1 能分配并跑完 13 个 step，
+  # 其后几次都拿不到）。那是账户侧的容量问题，与本仓库配置无关，不该让整条
+  # 流水线因此变红、连带阻塞 Windows/Linux/Android 的产物发布。
+  # 拿到 runner 时它照常产 dmg；拿不到时只影响 dmg 一个产物。
   macos:
     needs: meta
     runs-on: macos-14
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
 
@@ -416,8 +423,11 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ── 汇总产物并按需发 Release ────────────────────────────────
+  # 不把 macos 放进 needs：它可能拿不到 runner（见该 job 的说明），
+  # 而 Release 不该因为「少一个 dmg」整体失败。附件用通配 + 
+  # fail_on_unmatched_files: false 兜住 dmg 缺失。
   release:
-    needs: [meta, windows, linux, macos, android]
+    needs: [meta, windows, linux, android]
     if: needs.meta.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:
