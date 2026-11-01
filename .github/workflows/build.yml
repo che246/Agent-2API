@@ -447,6 +447,26 @@ jobs:
           merge-multiple: true
           pattern: '{windows-nsis,linux-desktop,linux-server,android-apk,macos-universal}'
 
+      # 把各产物目录里的文件摊平到 dist/ 根下。
+      #
+      # ── 为什么需要这一步 ──────────────────────────────────────
+      # 上传时用的是 `target/release/bundle/nsis/*.exe` 这类路径，upload-artifact
+      # 会保留**通配符之前的公共前缀之下的相对结构**，于是下载回来是
+      #   dist/nsis/Agent2API_…_x64-setup.exe
+      #   dist/deb/…、dist/appimage/…、dist/dmg/…
+      # 而 Release 的 `files:` 用的是相对 dist 的 glob。run#7 的现场就是：
+      # 只有三个落在 dist 根下的文件（apk 与两个 tar.gz）被挂上 Release，
+      # exe / deb / AppImage 明明在 dist/ 的子目录里却全被漏掉。
+      # （`files:` 已改成 `dist/**/*` 兜住子目录；这一步同时保留，
+      #   让产物在 Release 里平铺、不出现 nsis/ deb/ 这样的层级。）
+      - name: 摊平产物目录
+        run: |
+          set -euo pipefail
+          find dist -mindepth 2 -type f -exec mv -f -t dist {} +
+          find dist -mindepth 1 -type d -empty -delete
+          echo "--- dist 内容 ---"
+          ls -lh dist
+
       - name: 产物清单
         run: ls -lR dist
 
@@ -465,10 +485,10 @@ jobs:
             - macOS 的 dmg **未签名 / 未公证**，首次打开请右键 →「打开」。
             - Android 的 APK 为 **debug 签名**，仅供测试，不用于上架。
           files: |
-            dist/*.exe
-            dist/*.tar.gz
-            dist/*.deb
-            dist/*.AppImage
-            dist/*.dmg
-            dist/*.apk
+            dist/**/*.exe
+            dist/**/*.tar.gz
+            dist/**/*.deb
+            dist/**/*.AppImage
+            dist/**/*.dmg
+            dist/**/*.apk
           fail_on_unmatched_files: false
