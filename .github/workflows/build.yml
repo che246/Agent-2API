@@ -431,10 +431,21 @@ jobs:
     if: needs.meta.outputs.release == 'true'
     runs-on: ubuntu-latest
     steps:
+      # 用 pattern 只取真正要发布的产物。不能「下载全部」：docker job 用 gha
+      # 缓存时会顺带留下一个 `che246~Agent-2API~WNS434.dockerbuild` 产物，
+      # 它不是普通文件包，download-artifact 解压它会连续重试 5 次后失败
+      # （run#6 的实际报错：`Artifact download failed after 5 retries` /
+      # `digest-mismatch`）。
+      #
+      # `pattern` 是**单个 glob**（不是列表）。用 `*-*` 会连 dockerbuild 一起命中，
+      # 所以这里用「含连字符、且不以 .dockerbuild 结尾」的显式组合不成立 ——
+      # 改用一个能覆盖五个产物的精确集合：download-artifact 支持 `{a,b}` 花括号
+      # 展开（minimatch 语法）。
       - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
+          pattern: '{windows-nsis,linux-desktop,linux-server,android-apk,macos-universal}'
 
       - name: 产物清单
         run: ls -lR dist
