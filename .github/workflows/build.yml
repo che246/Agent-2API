@@ -347,7 +347,14 @@ jobs:
           npm --prefix desktop-tauri/ui-kit ci
           npm --prefix desktop-tauri/mobile ci
           npm --prefix desktop-tauri/mobile run build:native
-          npx --prefix desktop-tauri/mobile cap sync android
+
+      # `cap` 必须在 mobile 目录里跑：它按**当前工作目录**找 capacitor.config.ts
+      # 与 android/，用 `npx --prefix desktop-tauri/mobile` 只影响依赖解析、不改
+      # cwd，于是它会以为「android 平台还没添加」并以 exit 1 失败（run#3 的实际
+      # 报错：`[error] android platform has not been added yet.`）。
+      - name: 同步 Capacitor 工程
+        working-directory: desktop-tauri/mobile
+        run: npx cap sync android
 
       # debug 签名：CI 里没有上游那份 keystore（它已从仓库移出），
       # 但 debug 包可安装可测试，足够验证；正式包见文件头说明。
