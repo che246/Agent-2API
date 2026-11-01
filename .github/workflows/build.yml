@@ -189,15 +189,18 @@ jobs:
       # packaging/linux 的脚本打成一个可直接 install.sh 的 tar.gz。
       # 与 Dockerfile 走同一条 cargo 命令，产物互相可替换。
       #
-      # 注意 `--manifest-path`：cargo workspace 在 `desktop-tauri/src-tauri`
-      # （仓库根没有 Cargo.toml），而 `.cargo/config.toml` 把 target-dir 指到了
-      # 仓库根的 `target/` —— 所以产物仍在 `target/release/`，只是入口要指过去。
+      # 注意必须 `working-directory: desktop-tauri/src-tauri`：仓库根没有
+      # Cargo.toml（workspace 在 src-tauri 下）。用 `--manifest-path` 也能编过，
+      # 但 `target-dir = "../../target"` 是相对**该 workspace 的 .cargo/config.toml**
+      # 解析的，产物会落到与 Tauri 打包不同的子目录里（run#3 的实际现场：
+      # 编译成功，随后 `cp target/release/agent2api-server` 报 No such file）。
+      # 直接在 workspace 里跑，target-dir 就与桌面端构建完全一致。
       - name: 构建服务端（amd64）
+        working-directory: desktop-tauri/src-tauri
         run: |
           set -euo pipefail
-          VERSION="${{ needs.meta.outputs.version }}"
-          MANIFEST="desktop-tauri/src-tauri/Cargo.toml"
-          cargo build --release --manifest-path "$MANIFEST" -p agent2api-server
+          cargo build --release -p agent2api-server
+          cd "$GITHUB_WORKSPACE"
           STAGE="agent2api-server-linux-amd64"
           mkdir -p "dist/$STAGE/ui"
           cp target/release/agent2api-server "dist/$STAGE/"
@@ -210,13 +213,13 @@ jobs:
           ls -lh "dist/$STAGE.tar.gz"
 
       - name: 构建服务端（arm64，交叉编译）
+        working-directory: desktop-tauri/src-tauri
         run: |
           set -euo pipefail
-          MANIFEST="desktop-tauri/src-tauri/Cargo.toml"
           sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu
           rustup target add aarch64-unknown-linux-gnu
-          cargo build --release --manifest-path "$MANIFEST" -p agent2api-server \
-            --target aarch64-unknown-linux-gnu
+          cargo build --release -p agent2api-server --target aarch64-unknown-linux-gnu
+          cd "$GITHUB_WORKSPACE"
           STAGE="agent2api-server-linux-arm64"
           mkdir -p "dist/$STAGE/ui"
           cp target/aarch64-unknown-linux-gnu/release/agent2api-server "dist/$STAGE/"
